@@ -4,30 +4,47 @@ import pandas as pd
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
-# Common defaults across all routines below
+# Common default values
 AUTOTUNE = tf.data.AUTOTUNE
 IMAGE_SHAPE = (256, 256, 3)
 BATCH_SIZE = 32
 SHUFFLE_BUFFER = 1024
 
 def get_image_labels(image_files):
-    image_labels = pd.DataFrame(image_files, columns=['FILE'])
-    return image_labels
+    '''
+    Converts list of image filenames into a pandas dataframe.
+    '''
+    return pd.DataFrame(image_files, columns=['FILE'])
+
 
 def load_image(image_file):
+    '''
+    Assumes image filename is a string tensor.
+    '''
     image_file = image_file.numpy().decode('utf-8')
     image = tf.io.read_file(image_file)
     image = tf.io.decode_jpeg(image)
     image = tf.cast(image, tf.float32) / 255.0
     return image
 
+
 def tf_load_image(image_file, image_shape):
+    '''
+    Wrapper around load_image routine that sets the shape property of the
+    returned tensor. This step is unfortunately required if we want to load
+    images by filename using the map routine in our tf.data model below.
+    '''
     [image] = tf.py_function(load_image, [image_file], [tf.float32])
     image.set_shape(image_shape)
     return image
 
-def augment_images(inputs, targets):
 
+def augment_images(inputs, targets):
+    '''
+    Randomly flips, crops, and adjusts the contrast and brightness of images.
+    Works on batches of images but applies random augmentation on a per-image
+    (not per-batch) basis.
+    '''
     # These routines all seem to work best if converted to uint8 first.
     modified = tf.image.convert_image_dtype(inputs, tf.uint8)
     modified = tf.image.random_flip_left_right(modified)
@@ -49,6 +66,7 @@ def augment_images(inputs, targets):
 
     return (modified, modified)
 
+
 def create_dataset(image_labels,
                    augment=True,
                    shuffle=True,
@@ -57,7 +75,11 @@ def create_dataset(image_labels,
                    image_shape=IMAGE_SHAPE,
                    batch_size=BATCH_SIZE,
                    shuffle_buffer=SHUFFLE_BUFFER):
-
+    '''
+    Produces a generic tf.data.Dataset for our autoencoder model. This dataset
+    returns two identical copies of each image: one as the input and one as the
+    output that the autoencoder is trying to reproduce through a bottleneck.
+    '''
     # Create numpy array of image filenames
     image_files = image_labels['FILE'].to_numpy()
 
@@ -75,18 +97,26 @@ def create_dataset(image_labels,
 
     return ds
 
+
 def build_train_dataset(
-        id_folder='data_256px_2022-10-03/ID',
-        ec_folder='data_256px_2022-10-03/EC', # can be None
+        id_folder,
+        ec_folder=None,
+        max_images=None,
         val_size=0.2,
-        augment=[True, False], # train/val
-        shuffle=[True, False], # train/val
-        cache=[True, True], # train/val
+        random_state=None,
+        augment=[True, False], # [train, val]
+        shuffle=[True, False], # [train, val]
+        cache=[True, True], # [train, val]
         cache_filename=['', ''], # no filename -> RAM, filename -> disk
         image_shape=IMAGE_SHAPE,
         batch_size=BATCH_SIZE,
         shuffle_buffer=SHUFFLE_BUFFER):
-
+    '''
+    Wrapper around create_dataset routine for generating the training and
+    validation datasets. The dataset will consist of all in-distribution and
+    edge-case images found in id_folder and ec_folder, respectively. The user
+    can optionally ignore edge-case images by setting ec_folder=None.
+    '''
     # Get list of image files in the ID set
     id_image_files = glob.glob(f'{id_folder}/*.jpg')
     if len(id_image_files) == 0:
@@ -103,8 +133,13 @@ def build_train_dataset(
     # Read and process image labels
     trainval_df = get_image_labels(id_image_files + ec_image_files)
 
+    # If the user specified a maximum number of images, first shuffle the dataframe
+    # to mix ID and EC images together and then take the requested number from the top. 
+    if max_images is not None:
+        trainval_df = trainval_df.sample(frac=1).reset_index(drop=True).head(max_images)
+
     # Perform train/val split on full dataset
-    train_df, val_df = train_test_split(trainval_df, test_size=val_size)
+    train_df, val_df = train_test_split(trainval_df, test_size=val_size, random_state=random_state)
 
     # Create training and validation datasets
     train_ds = create_dataset(train_df,
@@ -131,7 +166,8 @@ def build_train_dataset(
     return (train_ds, train_df), (val_ds, val_df)
 
 def build_test_dataset(
-        ood_folder='data_256px_2022-10-03/OOD',
+        ood_folder,
+        max_images=None,
         augment=False,
         shuffle=False,
         cache=True,
@@ -139,6 +175,10 @@ def build_test_dataset(
         image_shape=IMAGE_SHAPE,
         batch_size=BATCH_SIZE,
         shuffle_buffer=SHUFFLE_BUFFER):
+    '''
+    Wrapper around create_dataset routine for generating test dataset. The test
+    dataset will consist of all out-of-distribution images found in ood_folder.
+    '''
 
     # Get list of image files in the OOD set
     ood_image_files = glob.glob(f'{ood_folder}/*.jpg')
@@ -148,6 +188,10 @@ def build_test_dataset(
 
     # Read and process image labels
     test_df = get_image_labels(ood_image_files)
+
+    # If the user specified a maximum number of images, take them off the top.
+    if max_images is not None:
+        test_df = test_df.head(max_images)
 
     # Create training and validation datasets
     test_ds = create_dataset(test_df,
@@ -161,4 +205,4 @@ def build_test_dataset(
 
     print(f'Built test dataset with {len(test_df)} images.')
 
-    return test_ds, test_df
+    return (test_ds, test_df)
