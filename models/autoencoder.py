@@ -151,7 +151,7 @@ class Autoencoder(Model):
                 EncodeBlock(
                     name=f'encode_{block_num}', 
                     filters=self.encode_filters[block_num], 
-                    kernel_size=int(np.minimum(kernel_size, image_shape[1]/self.shrinkage_factor**block_num)),
+                    kernel_size=kernel_size,
                     activation=activation,
                     batch_norm=batch_norm,
                     kernel_regularizer=kernel_regularizer,
@@ -171,7 +171,7 @@ class Autoencoder(Model):
                 DecodeBlock(
                     name=f'decode_{block_num}',
                     filters=self.decode_filters[block_num],
-                    kernel_size=int(np.minimum(kernel_size, image_shape[1]/self.shrinkage_factor**block_num)),
+                    kernel_size=kernel_size, 
                     activation=activation,
                     batch_norm=batch_norm,
                     kernel_regularizer=kernel_regularizer,
