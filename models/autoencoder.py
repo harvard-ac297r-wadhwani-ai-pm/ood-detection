@@ -1,5 +1,6 @@
 import os
 import time
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -29,7 +30,7 @@ class EncodeBlock(Layer):
                  name='encode_block', 
                  filters=32, 
                  kernel_size=3, 
-                 activation=ReLU, 
+                 activation=ReLU(), 
                  batch_norm=False,
                  kernel_regularizer=None,
                  kernel_initializer='he_normal'):
@@ -37,24 +38,24 @@ class EncodeBlock(Layer):
         super().__init__(name=name)
         self.filters = filters
         self.kernel_size = kernel_size
+        self.batch_norm = batch_norm
         self.kernel_regularizer = kernel_regularizer
         self.kernel_initializer = kernel_initializer
-        self.batch_norm = batch_norm
 
         self.conv1 = Conv2D(filters, kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
-        self.batchnorm1 = BatchNormalization()
-        self.act1 = activation()
+        if batch_norm: self.batchnorm1 = BatchNormalization()
+        self.act1 = activation
         self.conv2 = Conv2D(filters, kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
-        self.batchnorm2 = BatchNormalization()
-        self.act2 = activation()
+        if batch_norm: self.batchnorm2 = BatchNormalization()
+        self.act2 = activation
         self.maxpool = MaxPooling2D((2, 2))
 
-    def call(self, x):
+    def call(self, x, training=None):
         x = self.conv1(x)
-        if self.batch_norm: x = self.batchnorm1(x)
+        if self.batch_norm: x = self.batchnorm1(x, training=training)
         x = self.act1(x)
         x = self.conv2(x)
-        if self.batch_norm: x = self.batchnorm2(x)
+        if self.batch_norm: x = self.batchnorm2(x, training=training)
         x = self.act2(x)
         x = self.maxpool(x)
         return x
@@ -68,7 +69,7 @@ class DecodeBlock(Layer):
                  name='decode_block', 
                  filters=32, 
                  kernel_size=3, 
-                 activation=ReLU, 
+                 activation=ReLU(), 
                  batch_norm=False,
                  kernel_regularizer=None,
                  kernel_initializer='he_normal',
@@ -77,32 +78,28 @@ class DecodeBlock(Layer):
 
         super().__init__(name=name)
 
-        self.filters = filters
+        self.filters = [filters, image_shape[-1] if is_output else filters]
         self.kernel_size = kernel_size
+        self.batch_norm = batch_norm
         self.kernel_regularizer = kernel_regularizer
         self.kernel_initializer = kernel_initializer
-        self.batch_norm = batch_norm
         self.is_output = is_output
 
         self.upsample1 = UpSampling2D((2, 2))
-        self.conv1 = Conv2D(filters, kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
-        self.batchnorm1 = BatchNormalization()
-        self.act1 = activation()
-        if is_output:
-            self.conv2 = Conv2D(image_shape[-1], kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
-            self.act2 = Activation('sigmoid')
-        else:
-            self.conv2 = Conv2D(filters, kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
-            self.batchnorm2 = BatchNormalization()
-            self.act2 = activation()
+        self.conv1 = Conv2D(self.filters[0], kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
+        if batch_norm: self.batchnorm1 = BatchNormalization()
+        self.act1 = activation
+        self.conv2 = Conv2D(self.filters[1], kernel_size, strides=1, padding='same', kernel_regularizer=kernel_regularizer, kernel_initializer=kernel_initializer)
+        if batch_norm and not is_output: self.batchnorm2 = BatchNormalization()
+        self.act2 = Activation('sigmoid') if is_output else activation
 
-    def call(self, x):
+    def call(self, x, training=None):
         x = self.upsample1(x)
         x = self.conv1(x)
-        if self.batch_norm: x = self.batchnorm1(x)
+        if self.batch_norm: x = self.batchnorm1(x, training=training)
         x = self.act1(x)
         x = self.conv2(x)
-        if self.batch_norm and not self.is_output: x = self.batchnorm2(x)
+        if self.batch_norm and not self.is_output: x = self.batchnorm2(x, training=training)
         x = self.act2(x)
         return x
 
@@ -111,51 +108,64 @@ class Autoencoder(Model):
     '''
     Custom autoencoder model class.
     '''
-    def __init__(self, 
-                 name=None,
-                 image_shape=IMAGE_SHAPE, 
-                 init_filters=32, 
-                 filter_mult=2,
-                 filter_mult_every=1, 
-                 max_encode_blocks=None,
-                 kernel_size=3, 
-                 activation=ReLU,
-                 batch_norm=False,
-                 kernel_regularizer=None,
-                 kernel_initializer='he_normal'):
+    def __init__(self, **kwargs):
 
         super().__init__()
-        self._name = name if name is not None else time.strftime("%Y%m%d_%H%M%S")
-        self.image_shape = image_shape
-        self.kernel_size = kernel_size
-        self.kernel_initializer = kernel_initializer
-        self.kernel_regularizer = kernel_regularizer
-        self.activation = activation
-        self.batch_norm = batch_norm
+
+        # Dictionary of default values for supported keyword arguments.
+        default_kwargs = {
+            'name': None,
+            'image_shape': IMAGE_SHAPE, 
+            'init_filters': 32, 
+            'filter_mult': 2,
+            'filter_mult_every': 2, 
+            'max_encode_blocks': None,
+            'kernel_size': 3, 
+            'activation': ReLU(),
+            'batch_norm': False,
+            'kernel_regularizer': None,
+            'kernel_initializer': 'he_normal'
+            }
+
+        # Store each supported keyword argument as a model attribute, using the
+        # default values above wherever necessary. We need to be careful here
+        # in our handling of protected attributes from the Model parent class.
+        protected_attributes = ['name']
+        for key, val in default_kwargs.items():
+            if key in protected_attributes:
+                setattr(self, '_' + key, kwargs.get(key, val))
+            else:
+                setattr(self, key, kwargs.get(key, val))
+
+        # Generate a timestamp to serve as the model name if None was provided.
+        # Also store the model configuration so we can recreate it later.
+        self._name = self._name if self._name is not None else time.strftime("%Y%m%d_%H%M%S")
+        self.config = {key: getattr(self, key) for key in default_kwargs.keys()}
+        self.folder = f'logs/{self._name}'
 
         # Infer the shrinkage factor of each encode block 
         self.shrinkage_factor = int(16 / EncodeBlock()(tf.zeros([1, 16, 16, 1])).shape[1])
 
         # Compute the number of encode blocks that we can support, then compute
         # the number of filters in each encode block
-        self.encode_blocks = int(np.log(np.min(image_shape[:2])) // np.log(self.shrinkage_factor))
-        if max_encode_blocks is not None: 
-            self.encode_blocks = np.min([self.encode_blocks, max_encode_blocks])
-        self.encode_filters = [int(init_filters * filter_mult**np.floor(block_num / filter_mult_every)) for block_num in range(self.encode_blocks)]
+        self.encode_blocks = int(np.log(np.min(self.image_shape[:2])) // np.log(self.shrinkage_factor))
+        if self.max_encode_blocks is not None: 
+            self.encode_blocks = np.min([self.encode_blocks, self.max_encode_blocks])
+        self.encode_filters = [int(self.init_filters * self.filter_mult**np.floor(block_num / self.filter_mult_every)) for block_num in range(self.encode_blocks)]
 
         # Build full encoder network
         self.encoder = Sequential(name='encoder')
-        self.encoder.add(Input(shape=image_shape))
+        self.encoder.add(Input(shape=self.image_shape))
         for block_num in range(self.encode_blocks):
             self.encoder.add(
                 EncodeBlock(
                     name=f'encode_{block_num}', 
                     filters=self.encode_filters[block_num], 
-                    kernel_size=kernel_size,
-                    activation=activation,
-                    batch_norm=batch_norm,
-                    kernel_regularizer=kernel_regularizer,
-                    kernel_initializer=kernel_initializer
+                    kernel_size=self.kernel_size,
+                    activation=self.activation,
+                    batch_norm=self.batch_norm,
+                    kernel_regularizer=self.kernel_regularizer,
+                    kernel_initializer=self.kernel_initializer
                 )
             )
 
@@ -171,13 +181,13 @@ class Autoencoder(Model):
                 DecodeBlock(
                     name=f'decode_{block_num}',
                     filters=self.decode_filters[block_num],
-                    kernel_size=kernel_size, 
-                    activation=activation,
-                    batch_norm=batch_norm,
-                    kernel_regularizer=kernel_regularizer,
-                    kernel_initializer=kernel_initializer,
+                    kernel_size=self.kernel_size, 
+                    activation=self.activation,
+                    batch_norm=self.batch_norm,
+                    kernel_regularizer=self.kernel_regularizer,
+                    kernel_initializer=self.kernel_initializer,
                     is_output=(block_num == 0),
-                    image_shape=image_shape
+                    image_shape=self.image_shape
                 )
             )
 
@@ -200,6 +210,49 @@ class Autoencoder(Model):
         print(f'Latent dimensions: {[np.prod(layer.output_shape[1:]) for layer in self.encoder.layers]}')
         print(f'Image compression: {[float(f"{np.prod(layer.output_shape[1:])/np.prod(self.image_shape):.3g}") for layer in self.encoder.layers]}')
 
+    
+    def save_config(self):
+        '''
+        Pickle model configuration so we can recreate this exact model later.
+        '''
+        # Create log directory for this model if it does not already exist
+        if not os.path.exists(self.folder):
+            os.makedirs(self.folder)
+
+        # Pickle model configuration
+        config_file = f'{self.folder}/{self._name}_config.pkl'
+        with open(config_file, 'wb') as f:
+            pickle.dump(self.config, f)
+
+    
+    @classmethod
+    def from_config(cls, name):
+        '''
+        Builds Autoencoder model from previously saved configuration file.
+        This does not restore the model weights, it simply generates an
+        instance of the Autoencoder class with the same input arguments, which
+        is a precursor to restoring the model weights.
+        '''
+        config_file = f'logs/{name}/{name}_config.pkl'
+        try:
+            with open(config_file, 'rb') as f:
+                config = pickle.load(f)
+        except:
+            raise OSError(f'config file not found: {config_file}')
+
+        return cls(**config)
+
+
+    @classmethod
+    def load_model(cls, name):
+        '''
+        Returns existing Autoencoder model with the specified name.
+        '''
+        model = cls.from_config(name)
+        model.build((None, *model.config['image_shape']))
+        model.load_weights(f'{model.folder}/{model._name}.h5')
+        return model
+        
     
     ##
     ## TRAINING ROUTINES
@@ -226,16 +279,6 @@ class Autoencoder(Model):
 
         elif method in ['fine_tune']:
             self.fine_tune(train_ds, val_ds, epochs, patience, savefigs, verbose)
-
-        elif method in [None, 'none']:
-            model_weights = f'logs/{self._name}/{self._name}.h5'
-            try:
-                self.load_weights(model_weights)
-                print('')
-                print(f'Loaded pretrained model weights: {model_weights}')
-                print('')
-            except:
-                raise OSError(f'could not find pretrained model weights: {model_weights}')
 
         else:
             raise ValueError(f'unknown method: {method}')
@@ -267,8 +310,11 @@ class Autoencoder(Model):
         to monitor the training process.
         '''
         # Create log directory for this model if it does not already exist
-        if not os.path.exists(f'logs/{self._name}'):
-            os.makedirs(f'logs/{self._name}')
+        if not os.path.exists(self.folder):
+            os.makedirs(self.folder)
+
+        # Save the model configuration in log directory
+        self.save_config()
 
         # Helper routine for printing messages to the console during training
         print_banner = lambda msg, char, num=30: print('\n' + char*num + f' {msg} ' + char*num + '\n')
@@ -288,7 +334,7 @@ class Autoencoder(Model):
                     continue
                 elif i == resume_from:
                     print_banner(f'LOADING WEIGHTS FROM STAGE {i}', '-', 19)
-                    self.load_weights(f'logs/{self._name}/{self._name}_{i}.h5') 
+                    self.load_weights(f'{self.folder}/{self._name}_{i}.h5') 
                     continue
 
             if verbose:
@@ -307,23 +353,23 @@ class Autoencoder(Model):
             # Train staged model and save weights for this stage
             es = EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)
             hist = self.staged_models[i].fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[es], verbose=verbose)
-            self.save_weights(f'logs/{self._name}/{self._name}_{i}.h5')
+            self.save_weights(f'{self.folder}/{self._name}_{i}.h5')
 
             # Plot learning curve
-            saveas = f'logs/{self._name}/{self._name}_{i}_history.png' if savefigs else None
+            saveas = f'{self.folder}/{self._name}_{i}_history.png' if savefigs else None
             self.plot_learning_curve(hist, es, title=f'Autoencoder Learning Curve (Stage {i})', saveas=saveas)
 
             # Plot model outputs for batch of validation images
-            saveas = f'logs/{self._name}/{self._name}_{i}_outputs.png' if savefigs else None
+            saveas = f'{self.folder}/{self._name}_{i}_outputs.png' if savefigs else None
             self.plot_model_outputs(val_ds, layer=i, saveas=saveas)
 
         # Save weights for the full model after resetting all layers to be trainable
         self.trainable = True
-        self.save_weights(f'logs/{self._name}/{self._name}.h5')
+        self.save_weights(f'{self.folder}/{self._name}.h5')
 
         # If we made it this far, we can safely delete the staged model checkpoints
         for i in range(self.encode_blocks):
-            os.remove(f'logs/{self._name}/{self._name}_{i}.h5')
+            os.remove(f'{self.folder}/{self._name}_{i}.h5')
 
 
     def fit_end_to_end(self, 
@@ -339,8 +385,11 @@ class Autoencoder(Model):
         checkpoints, and plots.
         '''
         # Create log directory for this model if it does not already exist
-        if not os.path.exists(f'logs/{self._name}'):
-            os.makedirs(f'logs/{self._name}')
+        if not os.path.exists(self.folder):
+            os.makedirs(self.folder)
+
+        # Save model configuration in log directory
+        self.save_config()
 
         # Helper routine for printing messages to the console during training
         print_banner = lambda msg, char, num=30: print('\n' + char*num + f' {msg} ' + char*num + '\n')
@@ -349,15 +398,15 @@ class Autoencoder(Model):
         # Train model and save weights
         es = EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)
         hist = self.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[es], verbose=verbose)
-        self.save_weights(f'logs/{self._name}/{self._name}_end_to_end.h5')
+        self.save_weights(f'{self.folder}/{self._name}_end_to_end.h5')
 
         # Plot learning curve
-        saveas = f'logs/{self._name}/{self._name}_history_end_to_end.png' if savefigs else None
+        saveas = f'{self.folder}/{self._name}_history_end_to_end.png' if savefigs else None
         self.plot_learning_curve(hist, es, title=f'Autoencoder Learning Curve (End-to-End)', saveas=saveas)
 
         # Plot model outputs for batch of validation images at each layer
         for i in range(self.encode_blocks):
-            saveas = f'logs/{self._name}/{self._name}_{i}_outputs_end_to_end.png' if savefigs else None
+            saveas = f'{self.folder}/{self._name}_{i}_outputs_end_to_end.png' if savefigs else None
             self.plot_model_outputs(val_ds, layer=i, saveas=saveas)
 
 
@@ -377,20 +426,20 @@ class Autoencoder(Model):
 
         # Load previous model weights from greedy training
         if verbose: print_banner(f'LOADING MODEL WEIGHTS', '-', 23)
-        self.load_weights(f'logs/{self._name}/{self._name}.h5') 
+        self.load_weights(f'{self.folder}/{self._name}.h5') 
 
         # Train model and save fine-tuned weights
         es = EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)
         hist = self.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[es], verbose=verbose)
-        self.save_weights(f'logs/{self._name}/{self._name}_fine_tuned.h5')
+        self.save_weights(f'{self.folder}/{self._name}_fine_tuned.h5')
 
         # Plot learning curve
-        saveas = f'logs/{self._name}/{self._name}_history_fine_tuned.png' if savefigs else None
+        saveas = f'{self.folder}/{self._name}_history_fine_tuned.png' if savefigs else None
         self.plot_learning_curve(hist, es, title=f'Autoencoder Learning Curve (Fine Tuning)', saveas=saveas)
 
         # Plot model outputs for batch of validation images at each layer
         for i in range(self.encode_blocks):
-            saveas = f'logs/{self._name}/{self._name}_{i}_outputs_fine_tuned.png' if savefigs else None
+            saveas = f'{self.folder}/{self._name}_{i}_outputs_fine_tuned.png' if savefigs else None
             self.plot_model_outputs(val_ds, layer=i, saveas=saveas)
 
 
@@ -527,7 +576,7 @@ class Autoencoder(Model):
 
         train_losses, val_losses, test_losses = [], [], []
         for layer in layers:
-            saveas = f'logs/{self._name}/{self._name}_{layer}_loss.png' if savefigs else None
+            saveas = f'{self.folder}/{self._name}_{layer}_loss.png' if savefigs else None
             train_loss, val_loss, test_loss = self.plot_loss_at_layer(train_ds, val_ds, test_ds, layer=layer, saveas=saveas)
             train_losses.append(train_loss)
             val_losses.append(val_loss)
@@ -589,7 +638,7 @@ class Autoencoder(Model):
 
         train_ssims, val_ssims, test_ssims = [], [], []
         for layer in layers:
-            saveas = f'logs/{self._name}/{self._name}_{layer}_ssim.png' if savefigs else None
+            saveas = f'{self.folder}/{self._name}_{layer}_ssim.png' if savefigs else None
             train_ssim, val_ssim, test_ssim = self.plot_ssim_at_layer(train_ds, val_ds, test_ds, layer=layer, saveas=saveas)
             train_ssims.append(train_ssim)
             val_ssims.append(val_ssim)
@@ -680,12 +729,6 @@ class SSIMLoss():
 if __name__ == '__main__':
 
     K.clear_session()
-    demo = Autoencoder(activation=ReLU, 
-                       batch_norm=True,
-                       kernel_size=3, 
-                       init_filters=32, 
-                       filter_mult=2, 
-                       filter_mult_every=2, 
-                       max_encode_blocks=None,
-                       kernel_regularizer=None)
+    demo = Autoencoder()
+    demo.build((None, *IMAGE_SHAPE))
     demo.summary()
