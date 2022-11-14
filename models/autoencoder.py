@@ -10,9 +10,6 @@ from tensorflow.keras.layers import Layer, Input, Flatten, Dense, Reshape, Dropo
 from tensorflow.keras.layers import Activation, LeakyReLU, ReLU
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, UpSampling2D, Conv2DTranspose
 from tensorflow.keras.callbacks import Callback, EarlyStopping
-from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError
-from tensorflow.keras.optimizers import Adam, SGD
-from tensorflow.keras.regularizers import L1, L2
 import tensorflow.keras.backend as K
 
 # Common default values
