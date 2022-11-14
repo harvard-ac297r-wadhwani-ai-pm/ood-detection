@@ -25,6 +25,11 @@ def load_image(image_file):
     image = tf.io.read_file(image_file)
     image = tf.io.decode_jpeg(image)
     image = tf.cast(image, tf.float32) / 255.0
+    if image.shape[2] == 1:
+        image = tf.image.resize(image, [256,256])
+        image = cv2.merge((image.numpy(),image.numpy(),image.numpy()))
+    else:
+        image = tf.image.resize(image, [256,256])
     return image
 
 
@@ -167,6 +172,7 @@ def build_train_dataset(
 
 def build_test_dataset(
         ood_folder,
+        external_ood=False,
         max_images=None,
         augment=False,
         shuffle=False,
@@ -181,7 +187,12 @@ def build_test_dataset(
     '''
 
     # Get list of image files in the OOD set
-    ood_image_files = glob.glob(f'{ood_folder}/*.jpg')
+    
+    if external_ood == False:
+        ood_image_files = glob.glob(f'{ood_folder}/*.jpg')
+    else:
+        ood_image_files = glob.glob(f'{ood_folder}/*.JPEG')
+    
     if len(ood_image_files) == 0:
         raise OSError(f'No OOD images found in folder "{ood_folder}"')
     print(f'Found {len(ood_image_files)} OOD images.')
