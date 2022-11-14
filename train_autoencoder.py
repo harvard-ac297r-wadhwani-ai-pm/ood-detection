@@ -115,32 +115,32 @@ def main(args):
     autoencoder.summary()
 
     ## TRAIN MODEL
-#
-#    autoencoder.train(
-#        train_ds, 
-#        val_ds, 
-#        method=args.method, # ['greedy', 'end_to_end', 'fine_tune']
-#        epochs=args.epochs, 
-#        patience=args.patience, 
-#        savefigs=True, 
-#        resume_from=None, 
-#        verbose=args.verbose)
-#
-#    ## PLOT METRICS
-#
-#    train_losses, val_losses, test_losses = autoencoder.plot_loss(
-#        train_ds, 
-#        val_ds, 
-#        test_ds, 
-#        layers=range(1, autoencoder.encode_blocks),
-#        savefigs=True)
-#
-#    train_ssims, val_ssims, test_ssims = autoencoder.plot_ssim(
-#        train_ds, 
-#        val_ds, 
-#        test_ds, 
-#        layers=range(1, autoencoder.encode_blocks),
-#        savefigs=True)
+
+    autoencoder.train(
+        train_ds, 
+        val_ds, 
+        method=args.method, # ['greedy', 'end_to_end', 'fine_tune']
+        epochs=args.epochs, 
+        patience=args.patience, 
+        savefigs=True, 
+        resume_from=None, 
+        verbose=args.verbose)
+
+    ## PLOT METRICS
+
+    train_losses, val_losses, test_losses = autoencoder.plot_loss(
+        train_ds, 
+        val_ds, 
+        test_ds, 
+        layers=range(1, autoencoder.encode_blocks),
+        savefigs=True)
+
+    train_ssims, val_ssims, test_ssims = autoencoder.plot_ssim(
+        train_ds, 
+        val_ds, 
+        test_ds, 
+        layers=range(1, autoencoder.encode_blocks),
+        savefigs=True)
 
 if __name__ == '__main__':
 
