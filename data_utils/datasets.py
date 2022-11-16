@@ -27,7 +27,7 @@ def load_image(image_file):
     image = tf.cast(image, tf.float32) / 255.0
     if image.shape[2] == 1:
         tf_z_exp = tf.expand_dims(image,axis=2)
-        image = tf.repeat(tf_z_exp,repeat=3,axis=2)
+        image = tf.repeat(tf_z_exp,repeats=3,axis=2)
         image = tf.image.resize(image, [256,256])
     else:
         image = tf.image.resize(image, [256,256])
