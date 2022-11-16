@@ -28,8 +28,7 @@ def load_image(image_file):
     if image.shape[2] == 1:
         tf_z_exp = tf.expand_dims(image,axis=2)
         image = tf.repeat(tf_z_exp,repeat=3,axis=2)
-        #image = tf.image.resize(image, [256,256])
-        #image = cv2.merge((image.numpy(),image.numpy(),image.numpy()))
+        image = tf.image.resize(image, [256,256])
     else:
         image = tf.image.resize(image, [256,256])
     return image
