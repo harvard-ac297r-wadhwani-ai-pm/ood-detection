@@ -12,7 +12,8 @@ Our project goal is to identify and implement one or more effective solutions to
 
 # Data Preparation 
 
-* We sorted the open-source data set provided by Wadhwani AI into 3 categories: in-distribution (ID), edge case (EC), and out-of-distribution (OOD). We define these categories according to the CottonAce app guidance which outlines how users of the app should take a photo of the suspected pests. The guidelines specify that the contents of a pheromone trap from a farm field should be emptied onto a clean, blank, white sheet of paper and for the photo to be taken from above, in good lighting and with the paper taking up the entirety of the image. We sorted the images of the data set into these 3 categories according to how well each matched the specifications outlined in the app guideline. Images most closely adhering to protocol were placed in the ID set and those that were mostly compliant with the guidelines, but for some noticeable, non-overwhelming deviations were placed in the ED set. Most often, an image would be classified as EC instead of ID if the piece of paper holding the contents of the pheromone trap was not the entirety of the image and there was noticeable background content around the paper edges also captured by the image. A label of OOD was ascribed to any image that too meaningfully deviated from the app photo guidelines e.g. not using a piece of paper as a background for the bug trap contents, off topic image content such as an image of the farm field itself.
+We sorted the open-source data set provided by Wadhwani AI into 3 categories: in-distribution (ID), edge case (EC), and out-of-distribution (OOD). We define these categories according to the CottonAce app guidance which outlines how users of the app should take a photo of the suspected pests. The guidelines specify that the contents of a pheromone trap from a farm field should be emptied onto a clean, blank, white sheet of paper and for the photo to be taken from above, in good lighting and with the paper taking up the entirety of the image. We sorted the images of the data set into these 3 categories according to how well each matched the specifications outlined in the app guideline. Images most closely adhering to protocol were placed in the ID set and those that were mostly compliant with the guidelines, but for some noticeable, non-overwhelming deviations were placed in the ED set. Most often, an image would be classified as EC instead of ID if the piece of paper holding the contents of the pheromone trap was not the entirety of the image and there was noticeable background content around the paper edges also captured by the image. A label of OOD was ascribed to any image that too meaningfully deviated from the app photo guidelines e.g. not using a piece of paper as a background for the bug trap contents, off topic image content such as an image of the farm field itself.
+Functionality to download the open-source image data set and sort images into ID/EC/OOD categories is included in this repository.
 
 # Usage 
 
@@ -32,12 +33,13 @@ Training
 
 Evaluation 
 
+
 # License 
 
 MIT License
 
 # Acknowledgements 
 
-We thank our professor Dr. Weiwei Pan for her wonderful mentorship, our course teaching fellows Marton Havasi and Esther Brown for their excellent guidance, and the Wadhwani AI team for their partnership and support throughout. 
+We thank our professor Dr. Weiwei Pan for her wonderful mentorship, our course teaching fellows Esther Brown and Marton Havasi for their excellent guidance, and the Wadhwani AI team for their partnership and support throughout. 
 
 
