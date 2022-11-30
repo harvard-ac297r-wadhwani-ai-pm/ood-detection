@@ -12,7 +12,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, UpSampling2D, Conv2DTr
 from tensorflow.keras.callbacks import Callback, EarlyStopping
 import tensorflow.keras.backend as K
 
-# Common default values
+# Establish default values
 IMAGE_SHAPE = (256, 256, 3)
 
 ##
@@ -478,7 +478,7 @@ class Autoencoder(Model):
         Computes loss for every image in the dataset at the specified layer.
         '''
         losses = []
-        for (input_images, _) in ds:
+        for input_images, _ in ds:
             output_images = self.staged_models[layer].predict_on_batch(input_images)
             losses.append(self.per_image_loss(input_images, output_images))
 
@@ -491,7 +491,7 @@ class Autoencoder(Model):
         '''
         latent_codes = []
         staged_encoder = Model(self.encoder.input, self.encoder.layers[layer].output)
-        for (input_images, _) in ds:
+        for input_images, _ in ds:
             latent_codes.append(staged_encoder.predict_on_batch(input_images))
 
         return np.concatenate(latent_codes)
@@ -509,7 +509,7 @@ class Autoencoder(Model):
         Computes SSIM for every image in the dataset at the specified layer.
         '''
         ssim = []
-        for (input_images, _) in ds:
+        for input_images, _ in ds:
             output_images = self.staged_models[layer].predict_on_batch(input_images)
             ssim.append(tf.image.ssim(input_images, output_images, max_val=1.0))
 
@@ -520,33 +520,27 @@ class Autoencoder(Model):
     ##
 
     def plot_loss_at_layer(self, 
-                           train_ds, 
-                           val_ds, 
-                           test_ds, 
+                           ds_dict,
                            layer=-1, 
                            saveas=None):
         '''
-        Plots histograms of loss values for all images in the train,
-        validation, and test sets at the specified layer.
+        Plots histograms of loss values for each dataset at the specified layer.
         '''
         # Convert negative index into correct positive index
         layer = list(range(self.encode_blocks))[layer]
         latent_dim = np.prod(self.latent_code_shape_at_layer(layer))
 
-        # Evaluate loss on train/val/test datasets at this layer
-        train_loss = self.evaluate_at_layer(train_ds, layer=layer)
-        val_loss = self.evaluate_at_layer(val_ds, layer=layer)
-        test_loss = self.evaluate_at_layer(test_ds, layer=layer)
+        # Evaluate loss on each dataset at this layer
+        loss_dict = {label: self.evaluate_at_layer(ds, layer) for label, ds in ds_dict.items()}
 
         # Plot histogram of model loss breakdown
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.hist(train_loss, bins=25, alpha=0.5, density=True, label='train');
-        ax.hist(val_loss, bins=25, alpha=0.5, density=True, label='val');
-        ax.hist(test_loss, bins=25, alpha=0.5, density=True, label='test');
-        loss_labels = {'mean_squared_error': 'Mean Squared Error', 
+        for label, loss in loss_dict.items():
+            ax.hist(loss, bins=25, alpha=0.5, density=True, label=label);
+        xlabel_dict = {'mean_squared_error': 'Mean Squared Error', 
                        'mean_absolute_error': 'Mean Absolute Error', 
                        'ssim_loss': 'SSIM Loss'}
-        ax.set_xlabel(loss_labels.get(self.loss.name, 'Loss'), fontsize=12);
+        ax.set_xlabel(xlabel_dict.get(self.loss.name, 'Loss'), fontsize=12);
         ax.set_ylabel('Density', fontsize=12);
         ax.set_title(f'Autoencoder Performance (Layer {layer}, Dim = {latent_dim:,})', fontsize=12)
         ax.legend();
@@ -556,57 +550,45 @@ class Autoencoder(Model):
         if saveas is not None:
             fig.savefig(saveas)
 
-        return train_loss, val_loss, test_loss
+        return loss_dict
 
 
     def plot_loss(self,
-                  train_ds,
-                  val_ds,
-                  test_ds,
+                  ds_dict
                   layers='all',
                   savefigs=True):
         '''
-        Plots histograms of loss values for all images in the train,
-        validation, and test sets at *all* layers (or subset).
+        Plots histograms of loss values for each dataset at *all* layers (or subset).
         '''
         if layers == 'all': layers = range(self.encode_blocks)
 
-        train_losses, val_losses, test_losses = [], [], []
+        loss_dicts = dict() 
         for layer in layers:
             saveas = f'{self.folder}/{self._name}_{layer}_loss.png' if savefigs else None
-            train_loss, val_loss, test_loss = self.plot_loss_at_layer(train_ds, val_ds, test_ds, layer=layer, saveas=saveas)
-            train_losses.append(train_loss)
-            val_losses.append(val_loss)
-            test_losses.append(test_loss)
+            loss_dicts[layer] = self.plot_loss_at_layer(ds_dict, layer=layer, saveas=saveas)
 
-        return train_losses, val_losses, test_losses
+        return loss_dicts
 
 
     def plot_ssim_at_layer(self,
-                           train_ds,
-                           val_ds, 
-                           test_ds, 
+                           ds_dict
                            layer=-1, 
                            saveas=None):
         '''
-        Plots histograms for SSIM values for all images in the train,
-        validation, and test sets at the specified layer. Note that this is NOT
-        the same as SSIM loss plotted above! SSIM loss is 1-SSIM.
+        Plots histograms for SSIM values for each dataset at the specified
+        layer. Note: this is NOT the same as SSIMLoss! SSIMLoss = 1 - SSIM.
         '''
         # Convert negative index into correct positive index
         layer = list(range(self.encode_blocks))[layer]
         latent_dim = np.prod(self.latent_code_shape_at_layer(layer))
 
-        # Evaluate loss on train/val/test datasets at this layer
-        train_ssim = self.compute_ssim_at_layer(train_ds, layer=layer)
-        val_ssim = self.compute_ssim_at_layer(val_ds, layer=layer)
-        test_ssim = self.compute_ssim_at_layer(test_ds, layer=layer)
+        # Compute SSIM on each dataset at this layer
+        ssim_dict = {label: self.compute_ssim_at_layer(ds, layer) for label, ds in ds_dict.items()}
 
         # Plot histogram of model ssim breakdown
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.hist(train_ssim, bins=25, alpha=0.5, density=True, label='train');
-        ax.hist(val_ssim, bins=25, alpha=0.5, density=True, label='val');
-        ax.hist(test_ssim, bins=25, alpha=0.5, density=True, label='test');
+        for label, ssim in ssim_dict.items():
+            ax.hist(ssim, bins=25, alpha=0.5, density=True, label=label);
         ax.set_xlabel('SSIM', fontsize=12);
         ax.set_ylabel('Density', fontsize=12);
         ax.set_title(f'Autoencoder Performance (Layer {layer}, Dim = {latent_dim:,})', fontsize=12)
@@ -617,31 +599,26 @@ class Autoencoder(Model):
         if saveas is not None:
             fig.savefig(saveas)
 
-        return train_ssim, val_ssim, test_ssim
+        return ssim_dict
 
 
     def plot_ssim(self,
-                  train_ds,
-                  val_ds,
-                  test_ds,
+                  ds_dict,
                   layers='all',
                   savefigs=True):
         '''
-        Plots histograms for SSIM values for all images in the train,
-        validation, and test sets at *all* layers (or subset). Note that this
-        is NOT the same as SSIM loss plotted above! SSIM loss is 1-SSIM.
+        Plots histograms for SSIM values for each dataset at *all* layers (or
+        subset). Note: this is NOT the same as SSIMLoss! SSIMLoss = 1 - SSIM.
         '''
         if layers == 'all': layers = range(self.encode_blocks)
 
-        train_ssims, val_ssims, test_ssims = [], [], []
+        ssim_dicts = dict()
         for layer in layers:
             saveas = f'{self.folder}/{self._name}_{layer}_ssim.png' if savefigs else None
-            train_ssim, val_ssim, test_ssim = self.plot_ssim_at_layer(train_ds, val_ds, test_ds, layer=layer, saveas=saveas)
-            train_ssims.append(train_ssim)
-            val_ssims.append(val_ssim)
-            test_ssims.append(test_ssim)
+            ssim_dicts[layer] = self.plot_ssim_at_layer(ds_dict, layer=layer, saveas=saveas)
 
-        return train_ssims, val_ssims, test_ssims
+        return ssim_dicts
+
 
     @staticmethod
     def plot_learning_curve(hist, early_stopping, title=None, saveas=None):
