@@ -554,7 +554,7 @@ class Autoencoder(Model):
 
 
     def plot_loss(self,
-                  ds_dict
+                  ds_dict,
                   layers='all',
                   savefigs=True):
         '''
@@ -571,7 +571,7 @@ class Autoencoder(Model):
 
 
     def plot_ssim_at_layer(self,
-                           ds_dict
+                           ds_dict,
                            layer=-1, 
                            saveas=None):
         '''
