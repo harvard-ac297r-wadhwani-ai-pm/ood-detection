@@ -218,7 +218,7 @@ class Autoencoder(Model):
 
         # Add compiled attributes to model configuration if they exist
         try:
-            for compiled_attr in ['loss', 'optimizer', 'metrics']:
+            for compiled_attr in ['loss', 'metrics']:
                 self.config[compiled_attr] = getattr(self, compiled_attr)
         except AttributeError:
             print('Model configuration saved without compiled attributes')
