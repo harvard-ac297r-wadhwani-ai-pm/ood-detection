@@ -237,14 +237,25 @@ class Autoencoder(Model):
         instance of the Autoencoder class with the same input arguments, which
         is a precursor to restoring the model weights.
         '''
+        # Attempt to read in model configuration
         config_file = f'logs/{name}/{name}_config.pkl'
         try:
             with open(config_file, 'rb') as f:
                 config = pickle.load(f)
         except:
             raise OSError(f'config file not found: {config_file}')
+        
+        # Build model from configuration
+        model = cls(**config)
 
-        return cls(**config)
+        # Add compiled attributes to model if they exist
+        try:
+            for compiled_attr in ['loss', 'metrics']:
+                setattr(model, compiled_attr, config[compiled_attr])
+        except AttributeError:
+            print('Model configuration loaded without compiled attributes')
+
+        return model
 
 
     @classmethod
