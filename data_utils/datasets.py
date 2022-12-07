@@ -29,7 +29,7 @@ def load_image(image_file):
     '''
     image_file = image_file.numpy().decode('utf-8')
     image = tf.io.read_file(image_file)
-    image = tf.io.decode_jpeg(image)
+    image = tf.io.decode_jpeg(image, channels=3)
     image = tf.cast(image, tf.float32) / 255.0
     image = tf.image.resize(image, IMAGE_SHAPE[:2])
     return image
