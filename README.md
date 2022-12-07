@@ -14,9 +14,14 @@ Our project goal is to identify and implement one or more effective solutions to
 
 # Data Preparation 
 
-![Results from layer-wise training](figs/one_figure_id_ec_ood.png)
+<p align="center">
+<img src="figs/one_figure_id_ec_ood.png" width="500">
+</p>
+We sorted the open-source data set provided by Wadhwani AI into 3 categories: in-distribution (ID), edge case (EC), and out-of-distribution (OOD). 
 
-We sorted the open-source data set provided by Wadhwani AI into 3 categories: in-distribution (ID), edge case (EC), and out-of-distribution (OOD). We define these categories according to the CottonAce app guidance which outlines how users of the app should take a photo of the suspected pests. The guidelines specify that the contents of a pheromone trap from a farm field should be emptied onto a clean, blank, white sheet of paper and for the photo to be taken from above, in good lighting and with the paper taking up the entirety of the image. We sorted the images of the data set into these 3 categories according to how well each matched the specifications outlined in the app guideline. Images most closely adhering to protocol were placed in the ID set and those that were mostly compliant with the guidelines, but for some noticeable, non-overwhelming deviations were placed in the ED set. Most often, an image would be classified as EC instead of ID if the piece of paper holding the contents of the pheromone trap was not the entirety of the image and there was noticeable background content around the paper edges also captured by the image. A label of OOD was ascribed to any image that too meaningfully deviated from the app photo guidelines e.g. not using a piece of paper as a background for the bug trap contents, off topic image content such as an image of the farm field itself.
+We define these categories according to the CottonAce app guidance which outlines how users of the app should take a photo of the suspected pests. The guidelines specify that the contents of a pheromone trap from a farm field should be emptied onto a clean, blank, white sheet of paper and for the photo to be taken from above, in good lighting and with the paper taking up the entirety of the image. We sorted the images of the data set into these 3 categories according to how well each matched the specifications outlined in the app guideline. 
+
+Images most closely adhering to protocol were placed in the ID set and those that were mostly compliant with the guidelines, but for some noticeable, non-overwhelming deviations were placed in the ED set. Most often, an image would be classified as EC instead of ID if the piece of paper holding the contents of the pheromone trap was not the entirety of the image and there was noticeable background content around the paper edges also captured by the image. A label of OOD was ascribed to any image that too meaningfully deviated from the app photo guidelines e.g. not using a piece of paper as a background for the bug trap contents, off topic image content such as an image of the farm field itself.
 
 Functionality to download the open-source image data set and sort images into ID/EC/OOD categories is included in this repository.
 
@@ -33,12 +38,13 @@ python etl_setup.py --src_repo /path/to/opendata
 ```
 
 This command does the following:
+
 1. organizes opendata images into ID/EC/OOD folders
 2. resizes images to 256px images
 3. implements a 90/10 train-test split
 4. creates two versions of train-test split: bollworms-* and bollworms-clean-* (* = train, test). 
 
-Note: Bollworms-* considers EC as part of ID (introducing variation in the set of ID images). Bollworms-clean-* considers EC as part of OOD (ensuring set of ID images is as clean as possible). 
+**Note:** Bollworms-* considers EC as part of ID (introducing variation in the set of ID images). Bollworms-clean-* considers EC as part of OOD (ensuring set of ID images is as clean as possible). 
 
 
 ## Convolutional autoencoder (CAE)
@@ -72,6 +78,14 @@ Evaluation
 # Results
 
 ![Results from models](figs/eval_results.png)
+
+**Take-aways**
+1. Supervised models (rows 1--3) demonstrate strong performance on specific types of OOD images, but unsupervised/semi-supervised models (rows 4--7) may generalize better.
+2. In supervised setting, handcrafted features can achieve comparable performance to CNN with dramatically reduced model size, making it highly preferable on mobile platforms.
+3. Image features discovered by CAE can be improved for anomaly detection task by applying a whitening transformation that increases the distance between ID and OOD samples.
+4. Contrastive learning (CSI) achieves competitive results out-of-the-box; further exploration of this technique is warranted.
+5. Use handcrafted features if model size is a severe constraint. Otherwise, use CNN or CAE (whitened density) if that constraint can be relaxed.
+
 
 # License 
 
