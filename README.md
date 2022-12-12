@@ -93,6 +93,6 @@ MIT License
 
 # Acknowledgements 
 
-We thank our professor Dr. Weiwei Pan for her wonderful mentorship, our course teaching fellows Esther Brown and Marton Havasi for their excellent guidance, and the Wadhwani AI team for their partnership and support throughout. 
+We thank our professor Dr. Weiwei Pan for her wonderful mentorship, our course teaching fellows Esther Brown and Marton Havasi for their excellent guidance, and Jerome White and Soma Dhavala from the Wadhwani AI team for their partnership and support throughout. 
 
 
