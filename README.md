@@ -47,7 +47,9 @@ This command does the following:
 **Note:** Bollworms-* considers EC as part of ID (introducing variation in the set of ID images). Bollworms-clean-* considers EC as part of OOD (ensuring set of ID images is as clean as possible). 
 
 
-## Convolutional autoencoder (CAE)
+## Methods
+
+We explored 7 techniques: 3 supervised, 3 unsupervised, 1 contrastive learning. Code and results for each technique can be found under the /notebooks folder. 
 
 ![Results from layer-wise training](figs/cae_layerwise.png)
 
@@ -60,20 +62,6 @@ cd ~/ood-detection
 python train_cae.py
 ```
 
-### Evaluation 
-
-## Bayesian Mixture Model & Relative Mahalanobis Distance (RMD)
-Training
-
-Evaluation
-
-
-
-
-## Non-Neural Network Based Approaches
-Training
-
-Evaluation 
 
 # Results
 
