@@ -1,4 +1,4 @@
-# Out-of-distribution detection for Pest Management 
+# Out-of-Distribution Image Detection for AI-Based Pest Management App
 
 * Affiliation: Harvard University John A. Paulson School of Engineering and Applied Sciences and the Institute for Applied Computational Science (IACS)
 * Authors: Austin Nguyen, Erin Tomlinson, Eric Helmold, Aloysius Lim, Molly Liu 
