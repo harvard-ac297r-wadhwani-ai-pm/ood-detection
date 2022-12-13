@@ -7,8 +7,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from models.autoencoder import Autoencoder, SSIMLoss
 from data_utils.datasets import find_image_files, build_dataset
-
-BASE_FOLDER = os.path.dirname(os.path.abspath(__file__))
+from sklearn.model_selection import train_test_split
 
 def parse_args():
 

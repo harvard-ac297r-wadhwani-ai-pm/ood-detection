@@ -31,7 +31,7 @@ Functionality to download the open-source image data set and sort images into ID
 2. Run command in terminal window:
 
 ```
-cd ~/ood-detection
+cd ood-detection
 python etl_setup.py --src_repo /path/to/opendata 
 ```
 
@@ -56,10 +56,11 @@ We explored 7 techniques: 3 supervised, 3 unsupervised, 1 contrastive learning. 
 To train the autoencoder, run the following command (or see `notebooks/train_cae.ipynb`):
 
 ```
-cd ~/ood-detection
+cd ood-detection
 python train_cae.py
 ```
 
+Run `python train_cae.py --help` for a detailed list of input arguments.
 
 # Results
 
