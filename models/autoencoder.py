@@ -74,7 +74,6 @@ class DecodeBlock(Layer):
                  image_shape=IMAGE_SHAPE):
 
         super().__init__(name=name)
-
         self.filters = [filters, image_shape[-1] if is_output else filters]
         self.kernel_size = kernel_size
         self.batch_norm = batch_norm
