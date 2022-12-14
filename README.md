@@ -69,7 +69,7 @@ Run `python train_cae.py --help` for a detailed list of input arguments.
 
 # Results
 
-![Results from models](figs/eval_results.png)
+![Results from models](figs/model_results.png)
 
 **Take-aways**
 1. Supervised models (rows 1-3) demonstrate strong performance on specific types of OOD images, but unsupervised/semi-supervised models (rows 4-7) may generalize better.
