@@ -78,7 +78,7 @@ Run `python train_cae.py --help` for a detailed list of input arguments.
 4. Contrastive learning (CSI) achieves competitive results out-of-the-box; further exploration of this technique is warranted.
 5. Use handcrafted features if model size is a severe constraint. Otherwise, use CNN or CAE (whitened density) if that constraint can be relaxed.
 
-Full details available in our [technical report](ood_detection_pm_technical_report.pdf). 
+Full details available in our [technical report](docs/ood_detection_pm_technical_report.pdf). 
 
 # License 
 
