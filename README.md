@@ -44,6 +44,11 @@ This command does the following:
 
 **Note:** The bollworms-* dataset considers EC as part of ID (introducing variation in the set of ID images). The bollworms-clean-* dataset considers EC as part of OOD (ensuring set of ID images is as clean as possible). 
 
+## External datasets
+
+We tested our OOD detection methods on external datasets:
+* [Stanford dogs](http://vision.stanford.edu/aditya86/ImageNetDogs/)
+* [102 Flowers](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/)
 
 ## Methods
 
@@ -72,6 +77,7 @@ Run `python train_cae.py --help` for a detailed list of input arguments.
 3. Image features discovered by CAE can be improved for anomaly detection task by applying a whitening transformation that increases the distance between ID and OOD samples.
 4. Contrastive learning (CSI) achieves competitive results out-of-the-box; further exploration of this technique is warranted.
 5. Use handcrafted features if model size is a severe constraint. Otherwise, use CNN or CAE (whitened density) if that constraint can be relaxed.
+
 
 
 # License 
